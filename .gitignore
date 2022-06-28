@@ -330,6 +330,8 @@ ASALocalRun/
 .mfractor/
 
 #trainingImages&data
-.png
-.data
-.jpg
+LINEMOD
+VOCdevkit
+
+#archives
+.tar
