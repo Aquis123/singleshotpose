@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from utils import *
+from torch import Tensor
 
 def build_targets(pred_corners, target, num_keypoints, num_anchors, num_classes, nH, nW, noobject_scale, object_scale, sil_thresh, seen):
     nB = target.size(0)
@@ -131,7 +132,7 @@ class RegionLoss(nn.Module):
         nGT, nCorrect, coord_mask, conf_mask, cls_mask, txs, tys, tconf, tcls = \
                        build_targets(pred_corners, target.data, num_keypoints, nA, nC, nH, nW, self.noobject_scale, self.object_scale, self.thresh, self.seen)
         cls_mask   = (cls_mask == 1)
-        nProposals = int((conf > 0.25).sum().data[0])
+        nProposals = int((conf > 0.25).sum().data)
         for i in range(num_keypoints):
             txs[i] = Variable(txs[i].cuda())
             tys[i] = Variable(tys[i].cuda())
@@ -147,8 +148,8 @@ class RegionLoss(nn.Module):
         loss_xs   = list()
         loss_ys   = list()
         for i in range(num_keypoints):
-            loss_xs.append(self.coord_scale * nn.MSELoss(size_average=False)(x[i]*coord_mask, txs[i]*coord_mask)/2.0)
-            loss_ys.append(self.coord_scale * nn.MSELoss(size_average=False)(y[i]*coord_mask, tys[i]*coord_mask)/2.0)
+            loss_xs.append((self.coord_scale * nn.MSELoss(size_average=False)(x[i]*coord_mask, txs[i]*coord_mask)/2.0).cpu().detach().numpy())
+            loss_ys.append((self.coord_scale * nn.MSELoss(size_average=False)(y[i]*coord_mask, tys[i]*coord_mask)/2.0).cpu().detach().numpy())
         loss_conf  = nn.MSELoss(size_average=False)(conf*conf_mask, tconf*conf_mask)/2.0
         loss_x    = np.sum(loss_xs)
         loss_y    = np.sum(loss_ys)
@@ -170,6 +171,8 @@ class RegionLoss(nn.Module):
             print('       create loss : %f' % (t4 - t3))
             print('             total : %f' % (t4 - t0))
 
-        print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data[0], loss_y.data[0], loss_conf.data[0], loss.data[0]))
+        print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, total %f' % (self.seen, nGT, nCorrect, nProposals, memoryview(loss_x.data), memoryview(loss_y.data), memoryview(loss_conf.data), memoryview(loss.data)))
+        #print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data, loss_y.data, loss_conf.data, loss.data))
+        #print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data[0], loss_y.data[0], loss_conf.data[0], loss.data[0]))
         
         return loss
